@@ -73,27 +73,33 @@ subagent/start … subagent/end  归还名额 → 放行下一个等待者
 
 ## 安装
 
-### 方式 A：bundle 安装（推荐）
+### 方式 A：从 npm 安装（推荐）
 
 ```bash
-# 先构建
-pnpm install && pnpm run build
+# 桌面端形态 = desktop；CLI 形态（无 DSH_PROFILE）为 web
+dsh plugin --profile desktop add @caesarloo/dsh-subagent-queue
+```
 
-# 装进活动 profile（桌面端形态 = desktop，CLI 形态无 DSH_PROFILE 时为 web）
+`plugin add` 会把包加入 profile 的 `dsh.dependencies` 与 `dsh.profile.bundles`，本包的
+`cordis.patch.yml` 随之生效。实测桌面端安装后**热生效**（无需重启）；即便需要重启，
+bundle 已在 profile 中，重启后照常加载。
+
+### 方式 B：本地源码安装（开发调试用）
+
+```bash
+cd <插件目录>
+pnpm install && pnpm run build
 dsh plugin --profile desktop add <插件目录绝对路径>
 ```
 
-> 把 `<插件目录绝对路径>` 换成本机该工程的实际路径（本机示例可从包内 `package.json` 所在目录取得）。
+> 本地安装用于开发调试，改动源码后需重新 build 并重启宿主；正式使用建议方式 A。
 
-`plugin add` 会把包加入 profile 的 `dsh.profile.bundles`，本包的
-`cordis.patch.yml` 随之生效；bundle 层变更需要**重启宿主**才生效。
-
-### 方式 B：profile patch 直接 insert（指到构建产物）
+### 方式 C：profile patch 直接 insert（指到包名或构建产物）
 
 ```yaml
 - insert:
     - id: tool-subagent-queue
-      name: '<插件目录>/dist/index.js'   # 或包名（bundle 安装时）
+      name: '@caesarloo/dsh-subagent-queue'   # 或 '<插件目录>/dist/index.js'
       config:
         fallbackCapacity: 8
 ```
