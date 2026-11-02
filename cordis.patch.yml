@@ -1,0 +1,17 @@
+# dsh-subagent-queue bundle layer — applied when a profile lists this bundle.
+# `name` is resolved through the profile's node_modules (or $DSH_HOME/profiles/node_modules),
+# NOT a relative path.
+- insert:
+    - id: tool-subagent-queue
+      name: '@caesarloo/dsh-subagent-queue'
+      # config:
+      #   # 0 = auto（读 subagents 服务的 maxActiveSubagents，读不到用 fallbackCapacity）
+      #   capacity: 0
+      #   fallbackCapacity: 8
+      #   watchTools: [subagent, subagent_fork]
+      #   workflowTools: [workflow]
+      #   workflowConcurrency: 1
+      #   nestedPolicy: deny          # deny = 嵌套委派满则立即拒绝（防死锁）；queue = 照常排队
+      #   queueTimeoutMs: 1800000
+      #   onTimeout: deny
+      #   graceMs: 3000

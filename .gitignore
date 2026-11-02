@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# build output (not versioned; consumer rebuilds with `pnpm install && pnpm build`)
+dist/
+
+# npm
+*.tgz
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
