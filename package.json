@@ -1,6 +1,6 @@
 {
   "name": "@caesarloo/dsh-subagent-queue",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Queue-based concurrency gate for DSH subagent delegation: a host-layer tools/execute plugin that admits subagent/fork/workflow calls through a FIFO queue instead of failing at the hard child limit, tracks subagent/start|end lifecycle to release slots, serializes workflow runs, refuses nested delegation without waiting (deadlock guard), and reports stuck-slot drift.",
   "keywords": [
     "dsh",
@@ -50,7 +50,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-tools": "^0.2.0-rc.2",
-    "@deepseek-ai/schemastery": "^3.18.5"
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-tools": {
@@ -63,7 +63,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "~4.0.4",
     "@deepseek-ai/dsh-tools": "^0.2.1-rc.5",
-    "@deepseek-ai/schemastery": "^3.18.5",
+    "@deepseek-ai/schemastery": "^3.18.4",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.0"
   }

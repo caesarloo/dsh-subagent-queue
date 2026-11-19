@@ -225,8 +225,24 @@ test('subagent/start|end 事件驱动状态工具里的活跃计数', async () =
   assert.match(status.summary, /active=0/)
 })
 
-test('payload 缺 runId 时忽略并只告警一次（不回退到 session id）', async () => {
+test('活跃数超过容量时告警并在状态里给出 over（团队唤醒路径的可见性，2026-11-19）', async () => {
   const { ctx, listeners, logs, tools } = fakeCtx()
+  apply(ctx, BASE) // capacity=1
+  const statusTool = tools.find((tool) => tool.name === 'subagent_queue_status')
+
+  listeners.get('subagent/start')({ runId: 'r1', provider: 'spawn', id: 's1', local: true })
+  listeners.get('subagent/start')({ runId: 'r2', provider: 'spawn', id: 's2', local: true })
+
+  const status = await statusTool.execute({}, { signal: new AbortController().signal })
+  assert.match(status.summary, /active=2/, '两个未经闸门的 spawn 都计入活跃数')
+  assert.match(status.summary, /over=1/, '摘要给出 over=活跃-容量')
+  assert.match(status.details, /"overCapacity": true/)
+  const warns = logs.filter(([level]) => level === 'warn')
+  assert.equal(warns.length, 1, '超容量告警只打一条（60 秒节流）')
+  assert.match(warns[0][1], /超过容量/, '告警说明未经本插件放行')
+})
+
+test('payload 缺 runId 时忽略并只告警一次（不回退到 session id）', async () => {  const { ctx, listeners, logs, tools } = fakeCtx()
   apply(ctx, BASE)
   const statusTool = tools.find((tool) => tool.name === 'subagent_queue_status')
   listeners.get('subagent/start')({ provider: 'spawn', id: 's1', local: true })

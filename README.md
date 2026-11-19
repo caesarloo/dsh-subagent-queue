@@ -131,8 +131,11 @@ patch 层的 `config` 热生效；插件**代码**改动不会热重载，需要
 模型可调用 `subagent_queue_status`，返回：
 
 ```
-capacity=8(subagents.config) active=2 pending=0 workflow=0 queued=1
+capacity=8(subagents.config) active=2 pending=0 workflow=0 queued=1 over=0
 ```
+
+`over = max(0, active - capacity)`：大于 0 说明有**未经本插件放行**的 spawn（典型＝团队成员唤醒），
+见「已知边界」第 8 条。
 
 以及完整快照（队列成员、等待时长、活跃子代理运行时长、累计计数、最近 60 条事件）。
 
@@ -152,6 +155,13 @@ capacity=8(subagents.config) active=2 pending=0 workflow=0 queued=1
    `workflowTools`，否则闸门会静默不生效（启动日志会打印当前生效名单）。
 7. **不修改工具参数**（拦截缝明确禁止改写 `exec.arguments`），也不做审批交互——排队是
    时间维度的等待，不是权限判定。
+8. **团队成员唤醒这一路拦不到（2026-11-19 补记）**：给 inactive 队友发消息会由**团队层**直接起
+   一次性子进程并撞团队硬闸（`subagent limit reached`），不经过 `tools/execute`，所以本插件既
+   排不了队、也拒绝不了。现行处理＝**只做可见性**：活跃数超过容量时打出一条告警（每 60 秒最多
+   一条），状态工具摘要里多一个 `over=N` 字段、JSON 里有 `overCapacity` 布尔值。要真正覆盖这一路，
+   需要引擎在团队层留拦截缝（服务方法包装或事件 hook），属引擎侧改动，不在插件能力范围内。
+9. **创建失败的团队成员的注册槽不会自动回收**：那是团队注册表的状态，插件读不到、也删不掉；
+   现状只能靠重启该类成员或由引擎侧清理。
 
 ## 与同类插件的关系（2026-11-02 同类检索）
 

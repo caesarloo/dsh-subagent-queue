@@ -350,12 +350,32 @@ export function apply(ctx: Context, rawConfig: unknown = {}): void {
 
   // ---------------- 3. 真实子代理生命周期 → 槽位计数 ----------------
   let warnedMissingRunId = false
+  let lastOverCapacityWarnAt = 0
   on('subagent/start', (...handlerArgs: unknown[]): void => {
     const runId = extractRunId(handlerArgs)
-    if (runId !== undefined) scheduler.recordChildStart(runId)
-    else if (!warnedMissingRunId) {
-      warnedMissingRunId = true
-      logger?.warn?.('[subagent-queue] subagent/start payload 缺少 runId，已忽略（同名事件形态变化？）')
+    if (runId === undefined) {
+      if (!warnedMissingRunId) {
+        warnedMissingRunId = true
+        logger?.warn?.('[subagent-queue] subagent/start payload 缺少 runId，已忽略（同名事件形态变化？）')
+      }
+      return
+    }
+    scheduler.recordChildStart(runId)
+    // 可见性（2026-11-19）：团队成员唤醒等**不经过 tools/execute** 的 spawn 路径同样会发
+    // subagent/start、也计入 activeChildren，但本闸门放行不到它 ⇒ 活跃数可能超过容量。
+    // 这类 spawn 走的是团队层硬闸（插件没有拦截缝，见 README「已知边界」），所以这里只告警、
+    // 不干预；告警每 60 秒最多一条，避免刷屏。
+    const snap = scheduler.snapshot()
+    if (snap.activeChildren.length > snap.capacity) {
+      const now = Date.now()
+      if (now - lastOverCapacityWarnAt > 60_000) {
+        lastOverCapacityWarnAt = now
+        logger?.warn?.(
+          `[subagent-queue] 活跃子代理 ${snap.activeChildren.length} 超过容量 ${snap.capacity}(${snap.capacitySource})：` +
+            '存在未经本插件放行的 spawn——常见来源是「给 inactive 团队成员发消息」在团队层直接起子进程，' +
+            '本插件拦不到那一路（只能告警，不能排队）。',
+        )
+      }
     }
   })
 
@@ -398,11 +418,12 @@ export function apply(ctx: Context, rawConfig: unknown = {}): void {
           timeoutMs: 5000,
           async execute() {
             const snapshot = scheduler.snapshot()
+            const over = Math.max(0, snapshot.activeChildren.length - snapshot.capacity)
             const summary =
               `capacity=${snapshot.capacity}(${snapshot.capacitySource}) ` +
               `active=${snapshot.activeChildren.length} pending=${snapshot.pending.length} ` +
-              `workflow=${snapshot.workflowActive} queued=${snapshot.queued}`
-            return { summary, details: JSON.stringify({ summary, ...snapshot }, null, 2) }
+              `workflow=${snapshot.workflowActive} queued=${snapshot.queued} over=${over}`
+            return { summary, details: JSON.stringify({ summary, overCapacity: over > 0, ...snapshot }, null, 2) }
           },
         }),
       )
