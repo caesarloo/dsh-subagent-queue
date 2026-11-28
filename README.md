@@ -61,7 +61,8 @@ subagent/start … subagent/end  归还名额 → 放行下一个等待者
 优先级：`config.capacity` > `subagents` 服务的实时 `maxActiveSubagents`
 （`ctx.get('subagents').config.maxActiveSubagents`，用户可在「插件 → 子智能体」
 页面修改）> `config.fallbackCapacity`（默认 8，DSH 的默认值）。
-每次放行前重读，**改上限不需要重启插件**。
+每次放行前、以及每次调用 `subagent_queue_status` 时都会重读；插件 apply 后 1.5 秒还会延迟
+重读一次——**改上限不需要重启插件**。启动早期若宿主服务尚未就绪会先回落 fallback，稍后自动校正。
 
 > 注意：容量是"每棵 activation 树"的服务端语义，本插件按**宿主全局**保守计数
 > （同一时刻所有会话合计不超过名额）。单会话场景完全等价；多会话并行时偏保守。
@@ -133,6 +134,9 @@ patch 层的 `config` 热生效；插件**代码**改动不会热重载，需要
 ```
 capacity=8(subagents.config) active=2 pending=0 workflow=0 queued=1 over=0
 ```
+
+每次调用都会先重读宿主 `subagents` 服务的 `maxActiveSubagents`，不会停留在启动时的 fallback 值；
+插件启动后 1.5 秒还会延迟重读一次（覆盖「未发起委派就直接查状态」的场景）。
 
 `over = max(0, active - capacity)`：大于 0 说明有**未经本插件放行**的 spawn（典型＝团队成员唤醒），
 见「已知边界」第 8 条。

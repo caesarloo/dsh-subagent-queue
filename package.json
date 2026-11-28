@@ -1,6 +1,6 @@
 {
   "name": "@caesarloo/dsh-subagent-queue",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Queue-based concurrency gate for DSH subagent delegation: a host-layer tools/execute plugin that admits subagent/fork/workflow calls through a FIFO queue instead of failing at the hard child limit, tracks subagent/start|end lifecycle to release slots, serializes workflow runs, refuses nested delegation without waiting (deadlock guard), and reports stuck-slot drift.",
   "keywords": [
     "dsh",

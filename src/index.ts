@@ -255,6 +255,20 @@ export function apply(ctx: Context, rawConfig: unknown = {}): void {
   }
   refreshCapacity()
 
+  // 启动早期读到的可能是宿主 subagents 服务的默认 0（服务尚未就绪）；
+  // 延迟再读一次，避免用户未触发委派时状态工具长期显示 fallback。
+  const initialRefreshTimer = setTimeout(() => {
+    refreshCapacity()
+  }, 1500)
+  initialRefreshTimer.unref()
+  if (typeof pluginCtx.effect === 'function') {
+    try {
+      pluginCtx.effect(() => () => clearTimeout(initialRefreshTimer))
+    } catch {
+      // 老版本 cordis 没有 effect：定时器已 unref，进程退出不受影响
+    }
+  }
+
   const classify = (toolName: string): DelegateToolKind | undefined => {
     if (config.workflowTools.includes(toolName)) return 'workflow'
     if (config.watchTools.includes(toolName)) return 'delegate'
@@ -396,7 +410,7 @@ export function apply(ctx: Context, rawConfig: unknown = {}): void {
             'cumulative counters. Use it when delegations seem to stall or when you need to know how ' +
             'many concurrent subagents this host allows.',
           parameters: {},
-          // 只读快照，天然并发安全：不要让它当 exclusive barrier 占住一轮。
+          // 调用前先重读容量、再取快照；快照本身并发安全，不会当 exclusive barrier 占住一轮。
           isConcurrencySafe: () => true,
           output: {
             schema: {
@@ -417,6 +431,9 @@ export function apply(ctx: Context, rawConfig: unknown = {}): void {
           },
           timeoutMs: 5000,
           async execute() {
+            // 状态工具也要重读：宿主 subagents 设置可能在插件启动后才就绪或被修改，
+            // 只读 scheduler 快照会把启动早期的 fallback 值一直显示下去。
+            refreshCapacity()
             const snapshot = scheduler.snapshot()
             const over = Math.max(0, snapshot.activeChildren.length - snapshot.capacity)
             const summary =

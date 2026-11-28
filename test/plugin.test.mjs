@@ -264,6 +264,20 @@ test('extractCallId 只认首个参数里的 callId', () => {
   assert.equal(extractCallId([{ name: 'x' }]), undefined)
 })
 
+test('状态工具每次调用先重读 subagents 容量（启动读到 0 不会长期显示 fallback）', async () => {
+  const service = { config: { maxActiveSubagents: 0 } }
+  const { ctx, tools } = fakeCtx({ subagents: service })
+  apply(ctx, { ...BASE, capacity: 0, fallbackCapacity: 8 })
+  const statusTool = tools.find((tool) => tool.name === 'subagent_queue_status')
+
+  let status = await statusTool.execute({}, { signal: new AbortController().signal })
+  assert.match(status.summary, /capacity=8\(fallback\)/, '启动时服务未就绪 → 先回落 fallback')
+
+  service.config.maxActiveSubagents = 8
+  status = await statusTool.execute({}, { signal: new AbortController().signal })
+  assert.match(status.summary, /capacity=8\(subagents\.config\)/, '再次查状态应立即读到新值，不必等委派')
+})
+
 test('readServiceCapacity：配置优先，其次服务实时值，最后 fallback', () => {
   const config = normalizeConfig({})
   assert.deepEqual(readServiceCapacity({}, config), { value: 8, source: 'fallback' })
